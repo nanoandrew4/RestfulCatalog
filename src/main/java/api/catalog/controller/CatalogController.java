@@ -4,11 +4,15 @@ import api.catalog.dao.CatalogDAO;
 import api.catalog.model.CatalogEntry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.Valid;
-import java.util.List;
-
+/**
+ * Handles client-server interactions, and specifies what the client can request from the server. Since the catalog is
+ * ready only, specific catalog requests are the only operation allowed.
+ */
 @RestController
 @RequestMapping("/api")
 public class CatalogController {
@@ -16,16 +20,14 @@ public class CatalogController {
 	@Autowired
 	private CatalogDAO catalogDAO;
 
-	@PostMapping("/catalog")
-	public CatalogEntry createCatalogEntry(@Valid @RequestBody CatalogEntry catalogEntry) {
-		return catalogDAO.save(catalogEntry);
-	}
-
-	@GetMapping("/catalog")
-	public List<CatalogEntry> getAllCatalogEntries() {
-		return catalogDAO.findAll();
-	}
-
+	/**
+	 * Returns a catalog entry given an ID, if it exists. If there is no catalog entry associated with the given ID,
+	 * a 404 Not Found response will be returned.
+	 *
+	 * @param id ID of catalog entry to search for
+	 * @return 200 OK response with a Catalog entry in its body if it existed in the database, or a 404 Not Found
+	 * response with no body otherwise
+	 */
 	@GetMapping("/catalog/{id}")
 	public ResponseEntity<CatalogEntry> getCatalogEntryById(@PathVariable(value = "id") Long id) {
 		CatalogEntry catalogEntry = catalogDAO.findById(id);
@@ -33,34 +35,5 @@ public class CatalogController {
 		if (catalogEntry == null)
 			return ResponseEntity.notFound().build();
 		return ResponseEntity.ok().body(catalogEntry);
-	}
-
-	@PutMapping("/catalog/{id}")
-	public ResponseEntity<CatalogEntry> updateCatalogEntry(@PathVariable(value = "id") Long id, @Valid @RequestBody
-														   CatalogEntry newCatalogEntry) {
-		CatalogEntry catalogEntry = catalogDAO.findById(id);
-
-		if (catalogEntry == null)
-			return ResponseEntity.notFound().build();
-
-		catalogEntry.setItemName(newCatalogEntry.getItemName());
-		catalogEntry.setBrand(newCatalogEntry.getBrand());
-		catalogEntry.setPrice(newCatalogEntry.getPrice());
-		catalogEntry.setQuantity(newCatalogEntry.getQuantity());
-		catalogEntry.setStarRating(newCatalogEntry.getStarRating());
-
-		CatalogEntry updatedEntry = catalogDAO.save(catalogEntry);
-		return ResponseEntity.ok().body(updatedEntry);
-	}
-
-	@DeleteMapping("/catalog/{id}")
-	public ResponseEntity<CatalogEntry> deleteCatalogEntry(@PathVariable(value = "id") Long id) {
-		CatalogEntry catalogEntry = catalogDAO.findById(id);
-
-		if (catalogEntry == null)
-			return ResponseEntity.notFound().build();
-
-		catalogDAO.deleteCatalogEntryById(id);
-		return ResponseEntity.ok().build();
 	}
 }

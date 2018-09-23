@@ -7,6 +7,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -31,6 +32,9 @@ public class CatalogIntegrationTest {
 	@Autowired
 	private MockMvc mockMvc;
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
 	private final int NUM_OF_CRUD_OPS = 100;
 
 	private String[] generateCatalogItems() {
@@ -46,15 +50,6 @@ public class CatalogIntegrationTest {
 		return catalogEntries;
 	}
 
-	private MvcResult generateCatalogEntry(String catalogEntryJSON) throws Exception {
-		return mockMvc.perform(
-				MockMvcRequestBuilders.post("/api/catalog/")
-									  .content(catalogEntryJSON)
-									  .contentType(APPLICATION_JSON)
-									  .accept(APPLICATION_JSON)
-		).andReturn();
-	}
-
 	private MvcResult findCatalogEntry(int itemID) throws Exception {
 		return mockMvc.perform(
 				MockMvcRequestBuilders.get("/api/catalog/" + itemID)
@@ -62,53 +57,39 @@ public class CatalogIntegrationTest {
 		).andReturn();
 	}
 
-	private MvcResult updateCatalogEntry(int itemID, String newCatalogEntryJSON) throws Exception {
-		return mockMvc.perform(
-				MockMvcRequestBuilders.put("/api/catalog/" + itemID)
-									  .content(newCatalogEntryJSON)
-									  .contentType(APPLICATION_JSON)
-									  .accept(APPLICATION_JSON)
-		).andReturn();
+	private void initCatalogDatabase() {
+		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
+			jdbcTemplate.update(
+					"insert into catalog (item_name, brand, star_rating, price, quantity) values (?,?,?,?,?)",
+					"Item" + i, "Brand" + i, ((i % 5) + 1), i, i
+			);
+		}
 	}
 
-	private MvcResult deleteCatalogEntry(int itemID) throws Exception {
-		return mockMvc.perform(
-				MockMvcRequestBuilders.delete("/api/catalog/" + itemID)
-		).andReturn();
+	private void emptyCatalogDatabase() {
+		jdbcTemplate.update("truncate table catalog");
 	}
 
 	@Test
-	public void crudTest() throws Exception {
+	public void crudTest() {
+		initCatalogDatabase();
+
 		final int STATUS_OK = HttpServletResponse.SC_OK;
 		String[] catalogEntries = generateCatalogItems();
 
-		// Create
-		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
-			MvcResult result = generateCatalogEntry(catalogEntries[i]);
-			TestCase.assertEquals(STATUS_OK, result.getResponse().getStatus());
-		}
-
 		// Read
 		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
-			MvcResult result = findCatalogEntry(i + 1);
-			TestCase.assertEquals(STATUS_OK, result.getResponse().getStatus());
-			TestCase.assertEquals(catalogEntries[i], result.getResponse().getContentAsString());
+			MvcResult result;
+			try {
+				result = findCatalogEntry(i + 1);
+				TestCase.assertEquals(STATUS_OK, result.getResponse().getStatus());
+				TestCase.assertEquals(catalogEntries[i], result.getResponse().getContentAsString());
+			} catch (Exception e) {
+				e.printStackTrace();
+				TestCase.fail("Exception occurred while reading catalog table");
+			}
 		}
 
-		// Update
-		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) { // Reverses order of entries in the database
-			MvcResult result = updateCatalogEntry(i + 1, catalogEntries[NUM_OF_CRUD_OPS - 1 - i]);
-			TestCase.assertEquals(STATUS_OK, result.getResponse().getStatus());
-
-			MvcResult getUpdatedResult = findCatalogEntry(i + 1);
-			TestCase.assertEquals(STATUS_OK, getUpdatedResult.getResponse().getStatus());
-			TestCase.assertEquals(catalogEntries[NUM_OF_CRUD_OPS - 1 - i], getUpdatedResult.getResponse().getContentAsString());
-		}
-
-		// Delete
-		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
-			MvcResult result = deleteCatalogEntry(i + 1);
-			TestCase.assertEquals(STATUS_OK, result.getResponse().getStatus());
-		}
+		emptyCatalogDatabase();
 	}
 }

@@ -6,6 +6,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 
+/**
+ * Specifies all fields that a catalog entry must have, and houses getter and setter methods for those fields, so the
+ * individual fields can be retrieved or updated.
+ */
 @Entity
 @Table(name = "Catalog")
 @EntityListeners(AuditingEntityListener.class)

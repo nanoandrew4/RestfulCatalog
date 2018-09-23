@@ -40,7 +40,7 @@ public class OrderIntegrationTest {
 
 	private Random rand = new Random();
 
-	private String genRandOrderItemsAndQuantities() {
+	private String genRandOrderItemsAndQuantities(boolean causeMismatch) {
 		int items = rand.nextInt(MAX_ITEMS_PER_ORDER - 1) + 1;
 
 		StringBuilder strBuilder = new StringBuilder("{\"purchaserName\":\"TestBuyer\",\"itemIDs\":[");
@@ -59,6 +59,11 @@ public class OrderIntegrationTest {
 		boolean addedQuantity = false;
 		for (int i = 0; i < quantities.length; i++)
 			if (quantities[i] > 0) {
+				if (causeMismatch) {
+					causeMismatch = false;
+					continue;
+				}
+
 				strBuilder.append(addedQuantity ? "," : "").append(quantities[i]);
 				addedQuantity = true;
 			}
@@ -71,7 +76,7 @@ public class OrderIntegrationTest {
 		String[] catalogEntries = new String[NUM_OF_CRUD_OPS];
 
 		for (int i = 0; i < NUM_OF_CRUD_OPS; i++)
-			catalogEntries[i] = genRandOrderItemsAndQuantities();
+			catalogEntries[i] = genRandOrderItemsAndQuantities(false);
 
 		return catalogEntries;
 	}
@@ -121,6 +126,7 @@ public class OrderIntegrationTest {
 	}
 
 	@Test
+	@DirtiesContext
 	public void crudTest() {
 		initCatalogDatabase();
 
@@ -133,6 +139,7 @@ public class OrderIntegrationTest {
 				result = createOrder(orders[i]);
 				TestCase.assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
 			} catch (Exception e) {
+				e.printStackTrace();
 				TestCase.fail("Exception occurred while creating order with ID: " + (i + 1));
 			}
 		}
@@ -146,6 +153,7 @@ public class OrderIntegrationTest {
 				TestCase.assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
 				TestCase.assertEquals(orders[i], result.getResponse().getContentAsString());
 			} catch (Exception e) {
+				e.printStackTrace();
 				TestCase.fail("Exception occurred while reading order with ID: " + orderID);
 			}
 		}
@@ -158,6 +166,7 @@ public class OrderIntegrationTest {
 				result = updateOrder(orderID, orders[NUM_OF_CRUD_OPS - orderID]);
 				TestCase.assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
 			} catch (Exception e) {
+				e.printStackTrace();
 				TestCase.fail("Exception occurred while updating order with ID: " + orderID);
 			}
 
@@ -168,6 +177,7 @@ public class OrderIntegrationTest {
 				TestCase.assertEquals(orders[NUM_OF_CRUD_OPS - orderID], getUpdatedResult.getResponse()
 																						 .getContentAsString());
 			} catch (Exception e) {
+				e.printStackTrace();
 				TestCase.fail("Exception occurred while reading updated order with ID: " + orderID);
 			}
 		}
@@ -180,6 +190,7 @@ public class OrderIntegrationTest {
 				result = deleteOrder(orderID);
 				TestCase.assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
 			} catch (Exception e) {
+				e.printStackTrace();
 				TestCase.fail("Exception occurred while deleting order with ID: " + orderID);
 			}
 		}
@@ -191,11 +202,61 @@ public class OrderIntegrationTest {
 	public void outOfBoundsTest() {
 		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
 			try {
-				MvcResult result = createOrder(genRandOrderItemsAndQuantities());
+				MvcResult result = createOrder(genRandOrderItemsAndQuantities(false));
 				TestCase.assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), result.getResponse().getStatus());
 			} catch (Exception e) {
+				e.printStackTrace();
 				TestCase.fail("Exception occurred while creating an order");
 			}
 		}
+		// Due to empty orders table, returns 404 instead of 422
+//		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
+//			try {
+//				int itemID = i + 1;
+//				MvcResult result = updateOrder(itemID, genRandOrderItemsAndQuantities(false));
+//				TestCase.assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), result.getResponse().getStatus());
+//			} catch (Exception e) {
+//				e.printStackTrace();
+//				TestCase.fail("Exception occurred while updating an order");
+//			}
+//		}
+	}
+
+	@Test
+	@DirtiesContext
+	public void itemIDAndQuantityMismatchTest() {
+		initCatalogDatabase();
+
+		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
+			try {
+				MvcResult result = createOrder(genRandOrderItemsAndQuantities(true));
+				TestCase.assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), result.getResponse().getStatus());
+			} catch (Exception e) {
+				e.printStackTrace();
+				TestCase.fail("Exception occurred while creating an order");
+			}
+		}
+
+		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
+			try {
+				createOrder(genRandOrderItemsAndQuantities(false));
+			} catch (Exception e) {
+				e.printStackTrace();
+				TestCase.fail("Exception occurred while creating an order");
+			}
+		}
+
+		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
+			try {
+				int itemID = i + 1;
+				MvcResult result = updateOrder(itemID, genRandOrderItemsAndQuantities(true));
+				TestCase.assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), result.getResponse().getStatus());
+			} catch (Exception e) {
+				e.printStackTrace();
+				TestCase.fail("Exception occurred while updating an order");
+			}
+		}
+
+		emptyCatalogDatabase();
 	}
 }
