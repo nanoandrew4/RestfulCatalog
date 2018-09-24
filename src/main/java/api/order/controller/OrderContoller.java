@@ -1,5 +1,6 @@
 package api.order.controller;
 
+import api.JSONBuilder;
 import api.catalog.dao.CatalogDAO;
 import api.order.dao.OrderDAO;
 import api.order.model.Order;
@@ -26,11 +27,11 @@ public class OrderContoller {
 	private CatalogDAO catalogDAO = new CatalogDAO();
 
 	/**
-	 * Determines if an order contains items that are listen in the catalog. If any invalid item is detected, the
-	 * method will immediately return 'false';
+	 * Determines if an order contains items that are not listed in the catalog. If any invalid item is detected, the
+	 * method will immediately return false.
 	 *
 	 * @param order Order to verify
-	 * @return True is the order is valid, false if it contains at least one item not listen in the catalog
+	 * @return True is the order is valid, false if it contains at least one item not listed in the catalog
 	 */
 	private boolean areOrderItemsValid(Order order) {
 		for (Long l : order.getItemIDs())
@@ -44,18 +45,28 @@ public class OrderContoller {
 	 * quantities.
 	 *
 	 * @param order Order to verify
-	 * @return If any anomaly is detected, a ResponseEntity with the appropriate error code and body is returned.
+	 * @return If any anomaly is detected, a ResponseEntity with the appropriate error code and body is returned. If
+	 * the order is valid, null is returned
 	 */
 	@Nullable
 	private ResponseEntity<Object> isOrderValid(@NotNull Order order) {
-		if (order.getItemIDs().length != order.getQuantities().length) {
-			return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(
-					"Number of items and item quantities in order do not match"
+		final String errorPath = "/api/orders/";
+
+		if (order.getPurchaserName() == null || order.getItemIDs() == null || order.getItemQuantities() == null) {
+			return ResponseEntity.badRequest().body(
+					JSONBuilder.apiErrorBuilder(HttpStatus.BAD_REQUEST.value(), "Bad Request",
+												"Missing parameters in order", errorPath)
 			);
+		} else if (order.getItemIDs().length != order.getItemQuantities().length) {
+			return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(
+					JSONBuilder.apiErrorBuilder(HttpStatus.UNPROCESSABLE_ENTITY.value(), "Unprocessable Entity",
+												"Number of items and item quantities in order do not match", errorPath
+					));
 		} else if (!areOrderItemsValid(order)) {
 			return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(
-					"Order contained an item with an invalid ID"
-			);
+					JSONBuilder.apiErrorBuilder(HttpStatus.UNPROCESSABLE_ENTITY.value(), "Unprocessable Entity",
+												"Order contained an item that does not exist in the catalog", errorPath
+					));
 		}
 
 		return null;
@@ -64,7 +75,7 @@ public class OrderContoller {
 	/**
 	 * Stores an order in the database, if it is valid, as determined by isOrderValid(). If it is valid, it will return
 	 * the stored object in the body of the response, otherwise it will return a response with a relevant error code
-	 * and information regarding why it was not valid in the body of the response.
+	 * and information regarding why it was not valid.
 	 *
 	 * @param order Order to store in the database
 	 * @return 200 OK response with the stored order in the body, or a response with relevant error code and
@@ -121,7 +132,7 @@ public class OrderContoller {
 
 		order.setPurchaserName(newOrder.getPurchaserName());
 		order.setItemIDs(newOrder.getItemIDs());
-		order.setQuantities(newOrder.getQuantities());
+		order.setItemQuantities(newOrder.getItemQuantities());
 
 		Order updatedEntry = orderDAO.save(order);
 		return ResponseEntity.ok().body(updatedEntry);

@@ -15,15 +15,22 @@ import javax.validation.constraints.NotBlank;
 @EntityListeners(AuditingEntityListener.class)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Order {
+	/*
+	 * Read only, useful when creating an order, so the user creating it is returned the ID of their order.
+	 */
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private Long id; // Starts at value 1
 
 	@NotBlank
 	private String purchaserName;
 
 	@Lob
-	private Long[] itemIDs, quantities;
+	private Long[] itemIDs, itemQuantities;
+
+	public Long getId() {
+		return id;
+	}
 
 	public String getPurchaserName() {
 		return purchaserName;
@@ -41,11 +48,11 @@ public class Order {
 		this.itemIDs = itemIDs;
 	}
 
-	public Long[] getQuantities() {
-		return quantities;
+	public Long[] getItemQuantities() {
+		return itemQuantities;
 	}
 
-	public void setQuantities(Long[] quantities) {
-		this.quantities = quantities;
+	public void setItemQuantities(Long[] itemQuantities) {
+		this.itemQuantities = itemQuantities;
 	}
 }

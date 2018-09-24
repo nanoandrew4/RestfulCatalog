@@ -1,5 +1,6 @@
 package api.catalog;
 
+import api.DBHandler;
 import api.Main;
 import junit.framework.TestCase;
 import org.junit.Test;
@@ -35,21 +36,35 @@ public class CatalogIntegrationTest {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	/**
+	 * Specifies number of CRUD operations that the tests will carry out. This also represents the number of entries
+	 * a table will have, since it limits create operations.
+	 */
 	private final int NUM_OF_CRUD_OPS = 100;
 
+	/**
+	 * Generates placeholder catalog items.
+	 *
+	 * @return Array of catalog items represented in JSON format
+	 */
 	private String[] generateCatalogItems() {
 		String[] catalogEntries = new String[NUM_OF_CRUD_OPS];
 
 		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
 			catalogEntries[i] = "{\"itemName\":\"Item" + i + "\",\"brand\":\"Brand" + i + "\"," +
-								"\"starRating\":" + ((i % 5) + 1) + "," + "\"price\":" + i + "," +
-								"\"quantity\":" + i +
-								"}";
+								"\"starRating\":" + ((i % 5) + 1) + "," + "\"price\":" + i + "}";
 		}
 
 		return catalogEntries;
 	}
 
+	/**
+	 * Attempts to retrieve a catalog entry with the specified ID from the database, if it exists.
+	 *
+	 * @param itemID ID of the catalog entry to search for
+	 * @return MvcResponse containing the server response to the GET request
+	 * @throws Exception
+	 */
 	private MvcResult findCatalogEntry(int itemID) throws Exception {
 		return mockMvc.perform(
 				MockMvcRequestBuilders.get("/api/catalog/" + itemID)
@@ -57,27 +72,19 @@ public class CatalogIntegrationTest {
 		).andReturn();
 	}
 
-	private void initCatalogDatabase() {
-		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
-			jdbcTemplate.update(
-					"insert into catalog (item_name, brand, star_rating, price, quantity) values (?,?,?,?,?)",
-					"Item" + i, "Brand" + i, ((i % 5) + 1), i, i
-			);
-		}
-	}
-
-	private void emptyCatalogDatabase() {
-		jdbcTemplate.update("truncate table catalog");
-	}
-
 	@Test
-	public void crudTest() {
-		initCatalogDatabase();
+	public void readTest() {
+		// Populate catalog table, so retrieval can be tested
+		DBHandler.populateCatalogTable(NUM_OF_CRUD_OPS, jdbcTemplate);
 
 		final int STATUS_OK = HttpServletResponse.SC_OK;
 		String[] catalogEntries = generateCatalogItems();
 
-		// Read
+		/*
+		 * Tests catalog entry retrieval, by requesting a catalog entry that was previously written to the table, and
+		 * comparing the server response code to the expected value (200 OK), and the returned catalog entry to the
+		 * originally inserted one.
+		 */
 		for (int i = 0; i < NUM_OF_CRUD_OPS; i++) {
 			MvcResult result;
 			try {
@@ -90,6 +97,7 @@ public class CatalogIntegrationTest {
 			}
 		}
 
-		emptyCatalogDatabase();
+		// Clear catalog table for next tests to execute on a clean database
+		DBHandler.clearCatalogTable(jdbcTemplate);
 	}
 }

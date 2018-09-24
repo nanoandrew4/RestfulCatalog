@@ -8,7 +8,7 @@ import javax.validation.constraints.NotBlank;
 
 /**
  * Specifies all fields that a catalog entry must have, and houses getter and setter methods for those fields, so the
- * individual fields can be retrieved or updated.
+ * individual fields can be retrieved or updated as needed.
  */
 @Entity
 @Table(name = "Catalog")
@@ -17,14 +17,14 @@ import javax.validation.constraints.NotBlank;
 public class CatalogEntry {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private Long id; // Starts at value 1
 
 	@NotBlank
 	private String itemName, brand;
 
 	private Byte starRating;
 
-	private Long price, quantity;
+	private Long price;
 
 	public String getItemName() {
 		return itemName;
@@ -56,13 +56,5 @@ public class CatalogEntry {
 
 	public void setPrice(Long price) {
 		this.price = price;
-	}
-
-	public Long getQuantity() {
-		return quantity;
-	}
-
-	public void setQuantity(Long quantity) {
-		this.quantity = quantity;
 	}
 }
